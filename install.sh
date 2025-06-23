@@ -1,23 +1,27 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-set -e
+OWNER="2SSK"
+REPO="gocli"
 
-# Detect OS
-OS=$(uname | tr '[:upper:]' '[:lower:]')
-ARCH=$(uname -m)
+# 1) Detect OS and ARCH
+OS="$(uname | tr '[:upper:]' '[:lower:]')"
+ARCH="$(uname -m)"
 
-# Map architecture
-if [ "$ARCH" = "x86_64" ]; then
-    ARCH="amd64"
-elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
-    ARCH="arm64"
-else
-    echo "Unsupported architecture: $ARCH"
-    exit 1
-fi
+echo "Detected OS = ${OS}, ARCH = ${ARCH}"
 
-# Handle Windows OS (Git Bash or WSL detection)
-if [[ "$OS" == "mingw"* || "$OS" == "msys"* || "$OS" == "cygwin"* ]]; then
+# 2) Normalize ARCH names
+case "${ARCH}" in
+    x86_64)           ARCH="amd64"  ;;
+    aarch64|arm64)    ARCH="arm64"  ;;
+    *)
+        echo "❌ Unsupported architecture: ${ARCH}" >&2
+        exit 1
+        ;;
+esac
+
+# 3) Handle Windows-like environments
+if [[ "${OS}" == mingw* || "${OS}" == msys* || "${OS}" == cygwin* ]]; then
     OS="windows"
     BINARY="gocli-${OS}-${ARCH}.exe"
     DEST="gocli.exe"
@@ -26,19 +30,25 @@ else
     DEST="gocli"
 fi
 
-# Download binary
-URL="https://github.com/2SSK/gocli/releases/latest/download/${BINARY}"
+URL="https://github.com/${OWNER}/${REPO}/releases/latest/download/${BINARY}"
 
-echo "Downloading ${BINARY} from ${URL}..."
-curl -L -o ${DEST} ${URL}
+echo "Downloading ${BINARY} from:"
+echo "  ${URL}"
 
-# Install
-if [[ "$OS" == "windows" ]]; then
-    echo "On Windows, please manually move ${DEST} to a directory in your PATH or use it directly."
-    echo "You can also add it to PATH using: set PATH=%PATH%;C:\\path\\to\\binary"
+# 4) Download & fail on HTTP errors
+if ! curl --fail -L -o "${DEST}" "${URL}"; then
+    echo "❌ Download failed. Check that a release asset named '${BINARY}' exists." >&2
+    exit 1
+fi
+
+# 5) Install
+if [[ "${OS}" == "windows" ]]; then
+    echo "⚠️  Windows detected — please move '${DEST}' into a PATH directory yourself."
+    echo "   For example: move to 'C:\\Windows\\System32' or add to your PATH."
 else
-    chmod +x ${DEST}
-    sudo mv ${DEST} /usr/local/bin/gocli
-    echo "gocli installed successfully!"
+    chmod +x "${DEST}"
+    echo "Moving to /usr/local/bin/gocli (you may be prompted for your password)..."
+    sudo mv "${DEST}" /usr/local/bin/gocli
+    echo "✅ gocli installed successfully!"
     echo "Run 'gocli --help' to get started."
 fi
