@@ -8,9 +8,11 @@ import (
 	"os"
 	"os/exec"
 
+	_ "embed" // Importing embed package to use embedded files
 	"github.com/spf13/cobra"
 )
 
+//go:embed scripts/neofetch.sh
 var neofetchScript []byte
 
 // neofetchCmd represents the neofetch command

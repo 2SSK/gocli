@@ -8,9 +8,11 @@ import (
 	"os"
 	"os/exec"
 
+	_ "embed"
 	"github.com/spf13/cobra"
 )
 
+//go:embed scripts/hello.sh
 var helloScript []byte
 var arg string
 
