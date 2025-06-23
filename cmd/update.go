@@ -1,6 +1,3 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -9,12 +6,12 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"runtime"
 
 	"github.com/spf13/cobra"
 )
 
-// updateCmd represents the update command
 var updateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Update gocli to the latest version",
@@ -49,6 +46,9 @@ var updateCmd = &cobra.Command{
 		arch := runtime.GOARCH
 
 		binaryName := fmt.Sprintf("gocli-%s-%s", osName, arch)
+		if osName == "windows" {
+			binaryName += ".exe"
+		}
 
 		var downloadURL string
 		for _, asset := range release.Assets {
@@ -72,7 +72,6 @@ var updateCmd = &cobra.Command{
 		}
 		defer resp.Body.Close()
 
-		// Save to temporary file
 		tmpFile := "gocli_tmp"
 		out, err := os.Create(tmpFile)
 		if err != nil {
@@ -93,36 +92,54 @@ var updateCmd = &cobra.Command{
 			return
 		}
 
-		// Get the path to the currently running executable
 		currentBinary, err := os.Executable()
 		if err != nil {
 			fmt.Printf("Failed to find current binary: %v\n", err)
 			return
 		}
 
-		// Replace current binary
-		err = os.Rename(tmpFile, currentBinary)
+		// Prepare bootstrap script
+		bootstrapScript := fmt.Sprintf(`#!/bin/bash
+sleep 1
+mv %s %s
+echo "Update completed successfully!"
+`, tmpFile, currentBinary)
+
+		scriptPath := "gocli_update.sh"
+		scriptFile, err := os.Create(scriptPath)
 		if err != nil {
-			fmt.Printf("Failed to update binary: %v\n", err)
+			fmt.Printf("Failed to create update script: %v\n", err)
+			return
+		}
+		defer scriptFile.Close()
+
+		_, err = scriptFile.WriteString(bootstrapScript)
+		if err != nil {
+			fmt.Printf("Failed to write update script: %v\n", err)
 			return
 		}
 
-		fmt.Printf("gocli updated successfully to version %s!\n", release.TagName)
+		err = os.Chmod(scriptPath, 0755)
+		if err != nil {
+			fmt.Printf("Failed to set script as executable: %v\n", err)
+			return
+		}
 
-		// Optional: Restart the CLI if you want
+		fmt.Println("Launching update script...")
+
+		cmdExec := exec.Command("bash", scriptPath)
+		cmdExec.Stdout = os.Stdout
+		cmdExec.Stderr = os.Stderr
+
+		if err := cmdExec.Start(); err != nil {
+			fmt.Printf("Failed to start update script: %v\n", err)
+			return
+		}
+
+		fmt.Println("Update script running. Exiting current process...")
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(updateCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// updateCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// updateCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
