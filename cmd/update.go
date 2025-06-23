@@ -19,8 +19,8 @@ var updateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Update gocli to the latest version",
 	Run: func(cmd *cobra.Command, args []string) {
-		owner := "YOUR_USERNAME"
-		repo := "YOUR_REPO"
+		owner := "2SSK"
+		repo := "gocli"
 		apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", owner, repo)
 
 		fmt.Println("Checking for latest version...")
