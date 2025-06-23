@@ -11,27 +11,38 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var neofetchScript []byte
+
 // neofetchCmd represents the neofetch command
 var neofetchCmd = &cobra.Command{
 	Use:   "neofetch",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "Display system information using Neofetch",
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		script := "./scripts/neofetch.sh"
+		tmpFile, err := os.CreateTemp("", "gocli-neofetch-*.sh")
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error creating temp file: %v\n", err)
+			return
+		}
+		defer os.Remove(tmpFile.Name())
 
-		execCmd := exec.Command("bash", script)
+		_, err = tmpFile.Write(neofetchScript)
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error writing to temp file: %v\n", err)
+			return
+		}
+
+		err = tmpFile.Chmod(0755)
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error setting permissions: %v\n", err)
+			return
+		}
+
+		execCmd := exec.Command("bash", tmpFile.Name())
 
 		// Direct the output to CLI
 		execCmd.Stdout = cmd.OutOrStdout()
 		execCmd.Stderr = cmd.OutOrStderr()
-
-		// Ensure the script is executable
-		os.Chmod(script, 0755)
 
 		// Execute the script
 		if err := execCmd.Run(); err != nil {

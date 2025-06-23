@@ -11,40 +11,49 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var helloScript []byte
 var arg string
 
 // helloCmd represents the hello command
 var helloCmd = &cobra.Command{
 	Use:   "hello",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "Run a simple hello world script",
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		script := "./scripts/hello.sh"
+		// Write the embedded script to a temporary file
+		tmpFile, err := os.CreateTemp("", "gocli-hello-*.sh")
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error creating temp file: %v\n", err)
+			return
+		}
+		defer os.Remove(tmpFile.Name())
+
+		_, err = tmpFile.Write(helloScript)
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error writing to temp file: %v\n", err)
+			return
+		}
+
+		err = tmpFile.Chmod(0755)
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error setting permissions: %v\n", err)
+			return
+		}
+
+		tmpFile.Close()
 
 		var execCmd *exec.Cmd
 
 		// Pass the argument to the script if provided
 		if arg != "" {
-			execCmd = exec.Command("bash", script, arg)
+			execCmd = exec.Command("bash", tmpFile.Name(), arg)
 		} else {
-			execCmd = exec.Command("bash", script)
+			execCmd = exec.Command("bash", tmpFile.Name())
 		}
 
-		// Direct the outout to CLI
+		// Direct the output to CLI
 		execCmd.Stdout = cmd.OutOrStdout()
 		execCmd.Stderr = cmd.OutOrStderr()
-
-		// Ensure the script is executable
-		err := os.Chmod(script, 0755)
-		if err != nil {
-			fmt.Fprintf(cmd.ErrOrStderr(), "Error making script executable: %v\n", err)
-			return
-		}
 
 		// Execute the script
 		if err := execCmd.Run(); err != nil {
